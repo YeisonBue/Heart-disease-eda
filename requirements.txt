@@ -1,0 +1,6 @@
+flask>=3.0
+pandas>=2.1
+numpy>=1.26
+plotly>=5.18
+statsmodels>=0.14
+gunicorn>=21.2

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDA — Enfermedad Cardíaca Cleveland</title>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <!-- Custom CSS -->
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ── Navbar ────────────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top" id="mainNav">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand fw-bold" href="#">
+      <i class="fas fa-heartbeat me-2 text-danger"></i>EDA Cardíaco
+    </a>
+    <button class="navbar-toggler border-0" type="button"
+            data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav ms-auto gap-1">
+        <li class="nav-item"><a class="nav-link" href="#overview">Resumen</a></li>
+        <li class="nav-item"><a class="nav-link" href="#target">Objetivo</a></li>
+        <li class="nav-item"><a class="nav-link" href="#demographics">Demografía</a></li>
+        <li class="nav-item"><a class="nav-link" href="#clinical">Clínico</a></li>
+        <li class="nav-item"><a class="nav-link" href="#categorical">Categórico</a></li>
+        <li class="nav-item"><a class="nav-link" href="#correlation">Correlación</a></li>
+        <li class="nav-item"><a class="nav-link" href="#bivariate">Bivariado</a></li>
+        <li class="nav-item"><a class="nav-link" href="#insights">Insights</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────────────────── -->
+<div class="hero-section">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-8">
+        <h1 class="hero-title">
+          <i class="fas fa-heartbeat text-danger me-2"></i>
+          Análisis Exploratorio de Datos
+        </h1>
+        <p class="hero-subtitle">Dataset de Enfermedad Cardíaca — Cleveland Heart Disease</p>
+        <p class="hero-desc">
+          Exploración exhaustiva de los factores clínicos y demográficos que influyen en la
+          detección temprana de patologías cardiovasculares, con visualizaciones interactivas
+          sobre el conjunto de datos de Cleveland.
+        </p>
+        <div class="team-badge mt-3">
+          <i class="fas fa-users"></i>
+          Yeison Buelvas &nbsp;·&nbsp; Juan Díaz &nbsp;·&nbsp; Jeison Díaz &nbsp;·&nbsp; Juan Pájaro
+        </div>
+      </div>
+      <div class="col-lg-4 d-none d-lg-flex justify-content-center align-items-center">
+        <i class="fas fa-heartbeat fa-7x hero-ecg text-danger"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick-stats row ────────────────────────────────────────────────────── -->
+<div class="container-fluid px-4 mb-4">
+  <div class="row g-3">
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon bg-blue-soft"><i class="fas fa-users text-primary"></i></div>
+        <div class="stat-value">{{ stats.n_rows }}</div>
+        <div class="stat-label">Pacientes</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon bg-cyan-soft"><i class="fas fa-table-columns text-info"></i></div>
+        <div class="stat-value">{{ stats.n_cols }}</div>
+        <div class="stat-label">Variables</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon bg-red-soft"><i class="fas fa-heartbeat text-danger"></i></div>
+        <div class="stat-value">{{ stats.disease }}</div>
+        <div class="stat-label">Con Enfermedad<br><small class="text-danger fw-semibold">{{ stats.disease_pct }}%</small></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon bg-green-soft"><i class="fas fa-shield-heart text-success"></i></div>
+        <div class="stat-value">{{ stats.no_disease }}</div>
+        <div class="stat-label">Sin Enfermedad<br><small class="text-success fw-semibold">{{ (100 - stats.disease_pct)|round(1) }}%</small></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon bg-amber-soft"><i class="fas fa-calendar text-amber"></i></div>
+        <div class="stat-value">{{ stats.mean_age }}</div>
+        <div class="stat-label">Edad Promedio</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon bg-purple-soft"><i class="fas fa-vial text-purple"></i></div>
+        <div class="stat-value">{{ stats.mean_chol }}</div>
+        <div class="stat-label">Colesterol Medio</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content ───────────────────────────────────────────────────────── -->
+<div class="container-fluid px-4">
+
+  <!-- ── 1. Overview ──────────────────────────────────────────────────────── -->
+  <section id="overview" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-database me-2 text-primary"></i>Resumen del Dataset</h2>
+      <p>Estructura, calidad de datos y estadísticas descriptivas generales</p>
+    </div>
+    <div class="row g-4">
+
+      <!-- Dataset Context Card -->
+      <div class="col-12">
+        <div class="chart-card p-4">
+          <div class="row g-3 align-items-start">
+            <div class="col-lg-8">
+              <h6 class="fw-bold text-secondary text-uppercase mb-2" style="font-size:.78rem;letter-spacing:.6px">
+                <i class="fas fa-info-circle me-2"></i>Contexto del Dataset
+              </h6>
+              <p class="mb-2" style="font-size:.9rem;">
+                Dataset de Enfermedad Cardíaca de <strong>Cleveland</strong>, extraído del
+                repositorio <strong>UCI Machine Learning Repository</strong>. Contiene
+                <strong>303 observaciones</strong> y <strong>14 variables</strong>
+                (13 atributos + 1 variable objetivo), seleccionadas a partir de un conjunto
+                original de 75 atributos. <strong>Sin valores faltantes.</strong>
+              </p>
+              <p class="mb-0" style="font-size:.9rem;">
+                El objetivo de clasificación es predecir si un paciente padece enfermedad
+                cardíaca (<span class="badge-var">target=1</span>) o no
+                (<span class="badge-var">target=0</span>), minimizando los falsos negativos
+                dado el alto costo clínico de un diagnóstico omitido.
+              </p>
+            </div>
+            <div class="col-lg-4">
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="p-2 rounded-2 text-center" style="background:#f0f9ff;border:1px solid #bde0f7">
+                    <div style="font-size:1.4rem;font-weight:700;color:#2980b9">303</div>
+                    <div style="font-size:.75rem;color:#5d7a8a">Observaciones</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="p-2 rounded-2 text-center" style="background:#f0f9ff;border:1px solid #bde0f7">
+                    <div style="font-size:1.4rem;font-weight:700;color:#2980b9">14</div>
+                    <div style="font-size:.75rem;color:#5d7a8a">Variables</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="p-2 rounded-2 text-center" style="background:#fff8f0;border:1px solid #f7d9bd">
+                    <div style="font-size:1.4rem;font-weight:700;color:#e67e22">8</div>
+                    <div style="font-size:.75rem;color:#8a6d3b">Nominales</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="p-2 rounded-2 text-center" style="background:#fff8f0;border:1px solid #f7d9bd">
+                    <div style="font-size:1.4rem;font-weight:700;color:#e67e22">5</div>
+                    <div style="font-size:.75rem;color:#8a6d3b">Numéricas</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Variable Dictionary -->
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <i class="fas fa-book text-secondary"></i>Diccionario de Variables
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover var-table mb-0">
+              <thead><tr>
+                <th>Variable</th><th>Descripción Clínica</th><th>Tipo</th><th>Valores / Rango</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge-var">age</span></td>
+                  <td>Edad del paciente — factor de riesgo demográfico fundamental</td>
+                  <td><span class="badge bg-info-subtle text-info-emphasis">Numérico</span></td>
+                  <td>29 – 77 años</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">sex</span></td>
+                  <td>Sexo biológico — dimorfismo en presentación de síntomas</td>
+                  <td><span class="badge bg-warning-subtle text-warning-emphasis">Binario</span></td>
+                  <td>0 = Femenino &nbsp;·&nbsp; 1 = Masculino</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">cp</span></td>
+                  <td>Tipo de dolor torácico experimentado por el paciente</td>
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis">Categórico</span></td>
+                  <td>0 Angina típica · 1 Atípica · 2 No anginoso · 3 Asintomático</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">trestbps</span></td>
+                  <td>Presión arterial sistólica en reposo al ingreso hospitalario</td>
+                  <td><span class="badge bg-info-subtle text-info-emphasis">Numérico</span></td>
+                  <td>mm/Hg</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">chol</span></td>
+                  <td>Colesterol sérico — indicador de riesgo de aterosclerosis</td>
+                  <td><span class="badge bg-info-subtle text-info-emphasis">Numérico</span></td>
+                  <td>mg/dl</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">fbs</span></td>
+                  <td>Glucosa en ayunas &gt; 120 mg/dl — indicador de comorbilidad metabólica</td>
+                  <td><span class="badge bg-warning-subtle text-warning-emphasis">Binario</span></td>
+                  <td>0 = Falso (≤ 120) &nbsp;·&nbsp; 1 = Verdadero (&gt; 120)</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">restecg</span></td>
+                  <td>Resultados del electrocardiograma en reposo</td>
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis">Categórico</span></td>
+                  <td>0 Normal · 1 Anomalía de onda ST-T · 2 HVI por criterios de Estes</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">thalach</span></td>
+                  <td>Frecuencia cardíaca máxima alcanzada durante la prueba de esfuerzo</td>
+                  <td><span class="badge bg-info-subtle text-info-emphasis">Numérico</span></td>
+                  <td>bpm</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">exang</span></td>
+                  <td>Angina inducida por ejercicio — indicador de flujo sanguíneo insuficiente</td>
+                  <td><span class="badge bg-warning-subtle text-warning-emphasis">Binario</span></td>
+                  <td>0 = No &nbsp;·&nbsp; 1 = Sí</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">oldpeak</span></td>
+                  <td>Depresión del segmento ST inducida por ejercicio, relativa al reposo</td>
+                  <td><span class="badge bg-info-subtle text-info-emphasis">Numérico</span></td>
+                  <td>Valor continuo ≥ 0</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">slope</span></td>
+                  <td>Pendiente del segmento ST durante el pico del ejercicio</td>
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis">Categórico</span></td>
+                  <td>0 Ascendente · 1 Plano · 2 Descendente</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">ca</span></td>
+                  <td>Número de vasos principales coloreados por fluoroscopia</td>
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis">Categórico</span></td>
+                  <td>0, 1, 2, 3</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-var">thal</span></td>
+                  <td>Defecto de perfusión miocárdica (talasemia) — tipo de flujo sanguíneo</td>
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis">Categórico</span></td>
+                  <td>1 Flujo normal · 2 Defecto fijo (sin flujo) · 3 Defecto reversible (flujo anormal)</td>
+                </tr>
+                <tr class="table-warning fw-semibold">
+                  <td><span class="badge-var">target</span></td>
+                  <td>Variable objetivo — presencia de enfermedad cardíaca</td>
+                  <td><span class="badge bg-warning-subtle text-warning-emphasis">Binario</span></td>
+                  <td>0 = Ausencia de enfermedad &nbsp;·&nbsp; 1 = Presencia de enfermedad</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- First rows -->
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <i class="fas fa-table text-secondary"></i>Primeras 10 Filas del Dataset
+          </div>
+          <div class="table-responsive">{{ df_head_html|safe }}</div>
+        </div>
+      </div>
+      <!-- Descriptive stats -->
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <i class="fas fa-chart-bar text-secondary"></i>Estadísticas Descriptivas — Variables Numéricas
+          </div>
+          <div class="table-responsive">{{ desc_stats_html|safe }}</div>
+        </div>
+      </div>
+      <!-- Missing values -->
+      <div class="col-12">
+        {% if missing_values == 0 %}
+        <div class="alert alert-success d-flex align-items-center mb-0">
+          <i class="fas fa-check-circle fa-lg me-3"></i>
+          <div><strong>Sin Valores Faltantes:</strong> El dataset está completamente limpio —
+          no se detectaron valores nulos en ninguna de las {{ stats.n_cols }} variables.</div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning d-flex align-items-center mb-0">
+          <i class="fas fa-exclamation-triangle fa-lg me-3"></i>
+          <div><strong>{{ missing_values }} valores faltantes</strong> detectados en el dataset.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. Target Distribution ───────────────────────────────────────────── -->
+  <section id="target" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-bullseye me-2 text-danger"></i>Distribución de la Variable Objetivo</h2>
+      <p>Prevalencia de enfermedad cardíaca en la muestra analizada</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="chart-card">
+          <div id="chart_target_donut" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="chart-card d-flex flex-column justify-content-center p-4">
+          <h6 class="fw-bold mb-3 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            Interpretación Clínica
+          </h6>
+          <div class="insight-item">
+            <div class="insight-icon text-danger"><i class="fas fa-heart-crack"></i></div>
+            <div><strong>{{ stats.disease }} pacientes ({{ stats.disease_pct }}%)</strong>
+              presentan diagnóstico positivo de enfermedad cardíaca.</div>
+          </div>
+          <div class="insight-item">
+            <div class="insight-icon text-success"><i class="fas fa-shield-heart"></i></div>
+            <div><strong>{{ stats.no_disease }} pacientes ({{ (100 - stats.disease_pct)|round(1) }}%)</strong>
+              no presentan enfermedad cardíaca.</div>
+          </div>
+          <div class="insight-item">
+            <div class="insight-icon text-info"><i class="fas fa-balance-scale"></i></div>
+            <div>La distribución es <strong>relativamente balanceada</strong>, lo que favorece
+              el entrenamiento de modelos de clasificación sin necesidad de técnicas
+              de sobremuestreo.</div>
+          </div>
+          <div class="insight-item">
+            <div class="insight-icon text-warning"><i class="fas fa-venus-mars"></i></div>
+            <div>
+              La muestra incluye <strong>{{ stats.male }} hombres</strong> y
+              <strong>{{ stats.female }} mujeres</strong>, con predominancia masculina.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. Demographics ──────────────────────────────────────────────────── -->
+  <section id="demographics" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-users me-2 text-info"></i>Análisis Demográfico</h2>
+      <p>Distribución por edad y sexo en relación con el diagnóstico cardíaco</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="chart-card">
+          <div id="chart_age_distribution" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="chart-card">
+          <div id="chart_sex_target" class="plotly-chart"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. Clinical (Numerical) ──────────────────────────────────────────── -->
+  <section id="clinical" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-stethoscope me-2 text-success"></i>Variables Clínicas Numéricas</h2>
+      <p>Distribución, dispersión y comparación por grupo diagnóstico</p>
+    </div>
+    <div class="row g-4">
+      <!-- Histograms 2×2 -->
+      <div class="col-12">
+        <div class="chart-card">
+          <div id="chart_numerical_distributions" class="plotly-chart" style="min-height:580px"></div>
+        </div>
+      </div>
+      <!-- Box plots -->
+      <div class="col-12">
+        <div class="chart-card" style="overflow-x:auto">
+          <div id="chart_box_plots" class="plotly-chart" style="min-height:420px; min-width:680px"></div>
+        </div>
+      </div>
+      <!-- Violin + insights -->
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_violin_thalach" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card d-flex flex-column justify-content-center p-4">
+          <h6 class="fw-bold mb-3 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            Hallazgos Clave
+          </h6>
+          <ul class="insights-list">
+            <li><i class="fas fa-arrow-right text-danger me-2"></i>
+              Pacientes con enfermedad presentan <strong>menor frecuencia cardíaca
+              máxima (thalach)</strong> — diferencia estadísticamente relevante.</li>
+            <li><i class="fas fa-arrow-right text-danger me-2"></i>
+              <strong>Oldpeak</strong> (depresión ST) es marcadamente mayor en el grupo
+              enfermo, siendo uno de los predictores más potentes.</li>
+            <li><i class="fas fa-arrow-right text-warning me-2"></i>
+              La <strong>presión arterial en reposo</strong> muestra diferencias moderadas
+              entre grupos, con mayor variabilidad en el grupo enfermo.</li>
+            <li><i class="fas fa-arrow-right text-info me-2"></i>
+              El <strong>colesterol</strong> no presenta diferencia notable entre grupos —
+              paradoja del colesterol en enfermedad coronaria.</li>
+            <li><i class="fas fa-arrow-right text-success me-2"></i>
+              La <strong>edad</strong> promedio de los pacientes enfermos es ligeramente
+              mayor, aunque el rango se superpone considerablemente.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5. Categorical Variables ─────────────────────────────────────────── -->
+  <section id="categorical" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-tags me-2 text-warning"></i>Variables Categóricas</h2>
+      <p>Distribución de variables discretas y su relación con el diagnóstico</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_cp_target" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_thal_target" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_slope_target" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_ca_target" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div id="chart_restecg_target" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div id="chart_exang_target" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div id="chart_fbs_target" class="plotly-chart"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 6. Correlation ───────────────────────────────────────────────────── -->
+  <section id="correlation" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-project-diagram me-2 text-purple"></i>Análisis de Correlación</h2>
+      <p>Relaciones lineales entre todas las variables del dataset</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="chart-card">
+          <div id="chart_correlation_heatmap" class="plotly-chart" style="min-height:560px"></div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="chart-card">
+          <div id="chart_correlation_target" class="plotly-chart" style="min-height:430px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7. Bivariate ─────────────────────────────────────────────────────── -->
+  <section id="bivariate" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-chart-scatter me-2 text-secondary"></i>Análisis Bivariado</h2>
+      <p>Relaciones entre pares de variables coloreadas por diagnóstico</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_scatter_age_thalach" class="plotly-chart" style="min-height:420px"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div id="chart_scatter_chol_age" class="plotly-chart" style="min-height:420px"></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <i class="fas fa-sliders text-secondary"></i>Coordenadas Paralelas — Variables Clínicas
+            <small class="text-muted ms-2 fw-normal">Arrastra los ejes para filtrar rangos interactivamente</small>
+          </div>
+          <div id="chart_parallel_coords" class="plotly-chart" style="min-height:430px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 8. Medical Insights ──────────────────────────────────────────────── -->
+  <section id="insights" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-lightbulb me-2 text-warning"></i>Insights Médicos</h2>
+      <p>Tasas de enfermedad cardíaca por variables clínicas y demográficas clave</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div id="chart_disease_rate_age" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div id="chart_disease_rate_sex" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div id="chart_disease_rate_cp" class="plotly-chart"></div>
+        </div>
+      </div>
+      <!-- Conclusions -->
+      <div class="col-12">
+        <div class="chart-card p-4">
+          <h6 class="fw-bold mb-3 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            <i class="fas fa-flag-checkered me-2"></i>Conclusiones del Análisis Exploratorio
+          </h6>
+          <div class="row g-3">
+            <div class="col-md-6 col-lg-4">
+              <div class="p-3 rounded-3" style="background:#fff8f8; border:1px solid #fddede">
+                <div class="fw-semibold mb-1" style="color:#c0392b"><i class="fas fa-circle-exclamation me-2"></i>Predictores Fuertes</div>
+                <ul class="insights-list mt-2">
+                  <li>Oldpeak: mayor depresión ST → mayor riesgo</li>
+                  <li>Thalach: FC máxima baja correlaciona con enfermedad</li>
+                  <li>CP asintomático (tipo 3): mayor tasa de enfermedad</li>
+                  <li>Angina inducida por ejercicio (exang=1)</li>
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div class="p-3 rounded-3" style="background:#f0f9ff; border:1px solid #bde0f7">
+                <div class="fw-semibold mb-1" style="color:#2980b9"><i class="fas fa-circle-info me-2"></i>Factores Moderados</div>
+                <ul class="insights-list mt-2">
+                  <li>CA: más vasos → mayor probabilidad de enfermedad</li>
+                  <li>Talasemia: defecto reversible asociado a enfermedad</li>
+                  <li>Pendiente descendente del ST (slope=2)</li>
+                  <li>Sexo masculino con mayor prevalencia</li>
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div class="p-3 rounded-3" style="background:#f0fff4; border:1px solid #b7dfca">
+                <div class="fw-semibold mb-1" style="color:#27ae60"><i class="fas fa-circle-check me-2"></i>Factores con Bajo Impacto</div>
+                <ul class="insights-list mt-2">
+                  <li>Colesterol sin diferencia significativa entre grupos</li>
+                  <li>Glucosa en ayunas (fbs) con correlación baja</li>
+                  <li>ECG en reposo con correlación marginal</li>
+                  <li>Presión arterial en reposo — diferencia moderada</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /container-fluid -->
+
+<!-- ── Footer ────────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container text-center">
+    <p class="mb-1">
+      <i class="fas fa-heartbeat text-danger me-2"></i>
+      Sistema de Soporte a la Decisión Clínica — Cleveland Heart Disease Dataset
+    </p>
+    <p class="text-muted small mb-0">
+      Yeison Buelvas &nbsp;·&nbsp; Juan Díaz &nbsp;·&nbsp; Jeison Díaz &nbsp;·&nbsp; Juan Pájaro
+      &nbsp;|&nbsp; Electiva de Grado 2025-2026
+    </p>
+  </div>
+</footer>
+
+<!-- ── Bootstrap JS ───────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- ── Charts ────────────────────────────────────────────────────────────── -->
+<script>
+const PLOTLY_CONFIG = {
+  responsive: true,
+  displayModeBar: true,
+  modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+  toImageButtonOptions: { format: 'png', scale: 2, filename: 'eda_chart' },
+  displaylogo: false,
+};
+
+const charts = {
+  target_donut:            {{ charts.target_donut | safe }},
+  age_distribution:        {{ charts.age_distribution | safe }},
+  sex_target:              {{ charts.sex_target | safe }},
+  numerical_distributions: {{ charts.numerical_distributions | safe }},
+  box_plots:               {{ charts.box_plots | safe }},
+  violin_thalach:          {{ charts.violin_thalach | safe }},
+  cp_target:               {{ charts.cp_target | safe }},
+  thal_target:             {{ charts.thal_target | safe }},
+  slope_target:            {{ charts.slope_target | safe }},
+  ca_target:               {{ charts.ca_target | safe }},
+  restecg_target:          {{ charts.restecg_target | safe }},
+  exang_target:            {{ charts.exang_target | safe }},
+  fbs_target:              {{ charts.fbs_target | safe }},
+  correlation_heatmap:     {{ charts.correlation_heatmap | safe }},
+  correlation_target:      {{ charts.correlation_target | safe }},
+  scatter_age_thalach:     {{ charts.scatter_age_thalach | safe }},
+  scatter_chol_age:        {{ charts.scatter_chol_age | safe }},
+  disease_rate_age:        {{ charts.disease_rate_age | safe }},
+  disease_rate_sex:        {{ charts.disease_rate_sex | safe }},
+  disease_rate_cp:         {{ charts.disease_rate_cp | safe }},
+  parallel_coords:         {{ charts.parallel_coords | safe }},
+};
+
+Object.entries(charts).forEach(([key, fig]) => {
+  const el = document.getElementById('chart_' + key);
+  if (el) Plotly.newPlot(el, fig.data, fig.layout, PLOTLY_CONFIG);
+});
+
+/* Navbar scroll effect */
+window.addEventListener('scroll', () => {
+  document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 60);
+});
+
+/* Active nav-link highlight */
+const sections  = document.querySelectorAll('section[id]');
+const navLinks  = document.querySelectorAll('#mainNav .nav-link');
+const observer  = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const active = document.querySelector(`#mainNav .nav-link[href="#${e.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { threshold: 0.35 });
+sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
