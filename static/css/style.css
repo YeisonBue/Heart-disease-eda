@@ -253,3 +253,58 @@ body {
   .hero-section { padding: 3rem 1rem 2rem; }
   .stat-value   { font-size: 1.3rem; }
 }
+
+/* ── Navbar special links ────────────────────────────────────────────────── */
+.nav-link-builder {
+  background: rgba(23,162,184,0.15) !important;
+  color: #17a2b8 !important;
+  border: 1px solid rgba(23,162,184,0.3) !important;
+  border-radius: 6px !important;
+}
+.nav-link-predict {
+  background: rgba(155,89,182,0.15) !important;
+  color: #9b59b6 !important;
+  border: 1px solid rgba(155,89,182,0.3) !important;
+  border-radius: 6px !important;
+}
+.nav-link-builder:hover { background: rgba(23,162,184,0.3) !important; color: #fff !important; }
+.nav-link-predict:hover  { background: rgba(155,89,182,0.3) !important; color: #fff !important; }
+
+/* ── Form section labels ─────────────────────────────────────────────────── */
+.form-section-title {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--muted);
+  padding: .35rem 0 .1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .25rem;
+}
+
+/* ── Prediction result card ──────────────────────────────────────────────── */
+.predict-result-card {
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+.result-disease  { background: #fff5f5; border: 2px solid #fca5a5; }
+.result-healthy  { background: #f0fdf4; border: 2px solid #86efac; }
+
+.predict-icon { font-size: 2.5rem; margin-bottom: .5rem; }
+.result-disease .predict-icon  { color: #e74c3c; }
+.result-healthy .predict-icon  { color: #27ae60; }
+
+.predict-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: .75rem;
+  color: var(--text);
+}
+.predict-prob { margin-bottom: .75rem; }
+.prob-bar-bg  { background: #e5e7eb; border-radius: 999px; height: 10px; margin-bottom: .4rem; }
+.prob-bar-fill { height: 10px; border-radius: 999px; transition: width .6s ease; }
+.prob-text    { font-size: .83rem; }
+.predict-risk { font-size: 1rem; font-weight: 600; }
+.predict-model{ font-size: .75rem; }
+

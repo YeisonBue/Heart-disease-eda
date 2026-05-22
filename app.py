@@ -6,7 +6,18 @@ import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
+
+# ── ML ────────────────────────────────────────────────────────────────────────
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score, StratifiedKFold, train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (accuracy_score, precision_score, recall_score,
+                             f1_score, roc_auc_score, confusion_matrix,
+                             classification_report)
+from sklearn.pipeline import Pipeline
 
 app = Flask(__name__)
 
@@ -24,6 +35,40 @@ SLOPE_LABELS   = {0: "Ascendente", 1: "Plano", 2: "Descendente"}
 RESTECG_LABELS = {0: "Normal", 1: "Anomalía ST-T", 2: "HVI (Estes)"}
 SEX_LABELS     = {0: "Femenino", 1: "Masculino"}
 TARGET_LABELS  = {0: "Sin Enfermedad", 1: "Enfermedad Cardíaca"}
+FBS_LABELS     = {0: "Normal (≤120)", 1: "Alto (>120)"}
+EXANG_LABELS   = {0: "No", 1: "Sí"}
+CA_LABELS      = {0: "0 vasos", 1: "1 vaso", 2: "2 vasos", 3: "3 vasos"}
+
+# Human-readable variable names for chart builder
+VAR_LABELS = {
+    "age":      "Edad (años)",
+    "sex":      "Sexo",
+    "cp":       "Tipo de Dolor Torácico",
+    "trestbps": "Presión Arterial Reposo (mmHg)",
+    "chol":     "Colesterol (mg/dl)",
+    "fbs":      "Glucosa en Ayunas",
+    "restecg":  "ECG en Reposo",
+    "thalach":  "FC Máxima (bpm)",
+    "exang":    "Angina por Ejercicio",
+    "oldpeak":  "Depresión ST (Oldpeak)",
+    "slope":    "Pendiente Segmento ST",
+    "ca":       "Vasos Coloreados",
+    "thal":     "Talasemia",
+    "target":   "Diagnóstico",
+}
+
+CATEGORICAL_VARS = {"sex", "cp", "fbs", "restecg", "exang", "slope", "ca", "thal", "target"}
+NUMERICAL_VARS   = {"age", "trestbps", "chol", "thalach", "oldpeak"}
+
+# Maps for categorical vars (used in chart builder)
+CAT_MAPS = {
+    "sex": SEX_LABELS, "cp": CP_LABELS, "fbs": FBS_LABELS,
+    "restecg": RESTECG_LABELS, "exang": EXANG_LABELS, "slope": SLOPE_LABELS,
+    "ca": CA_LABELS, "thal": THAL_LABELS, "target": TARGET_LABELS,
+}
+
+FEATURE_COLS = ["age", "sex", "cp", "trestbps", "chol", "fbs",
+                "restecg", "thalach", "exang", "oldpeak", "slope", "ca", "thal"]
 
 # ── Colours ──────────────────────────────────────────────────────────────────
 C_DISEASE    = "#e74c3c"
@@ -35,6 +80,7 @@ LAYOUT_BASE  = dict(
     hoverlabel=dict(bgcolor="white", font_size=12, bordercolor="#dee2e6"),
     margin=dict(l=55, r=35, t=58, b=50),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    autosize=False,
 )
 
 
@@ -47,6 +93,72 @@ def _apply(fig, height=380):
     fig.update_xaxes(gridcolor="#f0f3f7", showgrid=True, zeroline=False)
     fig.update_yaxes(gridcolor="#f0f3f7", showgrid=True, zeroline=False)
     return fig
+
+
+# ── Machine Learning Model ───────────────────────────────────────────────────
+X_all = df[FEATURE_COLS]
+y_all = df["target"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_all, y_all, test_size=0.2, random_state=42, stratify=y_all
+)
+
+# Evaluate multiple algorithms with 5-fold cross-validation
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+_candidates = {
+    "Random Forest":      RandomForestClassifier(n_estimators=200, max_depth=7,
+                                                  min_samples_split=4, random_state=42),
+    "Gradient Boosting":  GradientBoostingClassifier(n_estimators=200, learning_rate=0.08,
+                                                      max_depth=4, random_state=42),
+    "Logistic Regression": Pipeline([
+                              ("scaler", StandardScaler()),
+                              ("clf",    LogisticRegression(max_iter=1000, C=0.8, random_state=42))
+                           ]),
+    "SVM":                Pipeline([
+                              ("scaler", StandardScaler()),
+                              ("clf",    SVC(kernel="rbf", C=1.5, probability=True, random_state=42))
+                           ]),
+}
+
+_cv_scores = {}
+for name, est in _candidates.items():
+    scores = cross_val_score(est, X_all, y_all, cv=cv, scoring="accuracy")
+    _cv_scores[name] = {"mean": round(scores.mean() * 100, 2),
+                        "std":  round(scores.std()  * 100, 2)}
+
+# Best model = highest mean CV accuracy
+best_name = max(_cv_scores, key=lambda k: _cv_scores[k]["mean"])
+model = _candidates[best_name]
+model.fit(X_train, y_train)
+
+# Test-set metrics
+y_pred      = model.predict(X_test)
+y_prob      = model.predict_proba(X_test)[:, 1]
+MODEL_STATS = {
+    "name":      best_name,
+    "accuracy":  round(accuracy_score(y_test, y_pred)          * 100, 2),
+    "precision": round(precision_score(y_test, y_pred)         * 100, 2),
+    "recall":    round(recall_score(y_test, y_pred)            * 100, 2),
+    "f1":        round(f1_score(y_test, y_pred)                * 100, 2),
+    "auc_roc":   round(roc_auc_score(y_test, y_prob)           * 100, 2),
+    "cv_scores": _cv_scores,
+    "conf_matrix": confusion_matrix(y_test, y_pred).tolist(),
+}
+
+# Feature importances (only for tree-based models)
+if hasattr(model, "feature_importances_"):
+    imp = model.feature_importances_
+elif hasattr(model, "named_steps"):
+    clf = model.named_steps.get("clf")
+    imp = clf.coef_[0] if hasattr(clf, "coef_") else None
+else:
+    imp = None
+
+FEATURE_IMPORTANCE = (
+    sorted(zip(FEATURE_COLS, imp.tolist()), key=lambda x: x[1], reverse=True)
+    if imp is not None else []
+)
 
 
 # ── Stats ────────────────────────────────────────────────────────────────────
@@ -378,6 +490,156 @@ def get_descriptive_stats():
                          border=0, table_id="stats-table")
 
 
+def chart_feature_importance():
+    if not FEATURE_IMPORTANCE:
+        return j(go.Figure())
+    names  = [VAR_LABELS.get(f, f) for f, _ in FEATURE_IMPORTANCE]
+    values = [abs(v) for _, v in FEATURE_IMPORTANCE]  # abs for LR coefficients
+    # Normalize to [0,1] for consistent display
+    max_v  = max(values) if values else 1
+    norm_v = [v / max_v for v in values]
+    colors = [C_DISEASE if i < 3 else ("#f39c12" if i < 6 else C_NO_DISEASE)
+              for i in range(len(norm_v))]
+    fig = go.Figure(go.Bar(
+        x=norm_v[::-1], y=names[::-1], orientation="h",
+        marker_color=colors[::-1],
+        text=[f"{v*100:.1f}%" for v in norm_v[::-1]],
+        textposition="outside",
+        hovertemplate="%{y}: %{x:.3f}<extra></extra>",
+    ))
+    layout = {k: v for k, v in LAYOUT_BASE.items() if k != "margin"}
+    fig.update_layout(**layout, height=420,
+                      title=f"Importancia de Variables — {MODEL_STATS['name']}",
+                      xaxis_title="Importancia Relativa (normalizada)",
+                      margin=dict(l=180, r=60, t=58, b=50))
+    fig.update_xaxes(gridcolor="#f0f3f7", range=[0, 1.25])
+    fig.update_yaxes(gridcolor="#f0f3f7")
+    return j(fig)
+
+
+def chart_confusion_matrix():
+    cm = MODEL_STATS["conf_matrix"]
+    labels = ["Sin Enfermedad", "Enfermedad Cardíaca"]
+    z_text = [[f"<b>{v}</b>" for v in row] for row in cm]
+    fig = go.Figure(go.Heatmap(
+        z=cm, x=[f"Pred: {l}" for l in labels], y=[f"Real: {l}" for l in labels],
+        text=z_text, texttemplate="%{text}", textfont=dict(size=18),
+        colorscale=[[0, "#dbeafe"], [1, "#1d4ed8"]],
+        showscale=False,
+        hovertemplate="Real: %{y}<br>Pred: %{x}<br>N = %{z}<extra></extra>",
+    ))
+    layout = {k: v for k, v in LAYOUT_BASE.items() if k != "margin"}
+    fig.update_layout(**layout,
+                      title="Matriz de Confusión (conjunto de prueba)",
+                      height=340, margin=dict(l=160, r=50, t=58, b=80))
+    return j(fig)
+
+
+# ── API: Chart Builder ────────────────────────────────────────────────────────
+@app.route("/api/chart-builder")
+def api_chart_builder():
+    x_var      = request.args.get("x", "age")
+    y_var      = request.args.get("y", "chol")
+    chart_type = request.args.get("chart_type", "scatter")
+    color_by   = request.args.get("color_by", "target")
+
+    df2 = df.copy()
+    # Apply readable labels to categorical columns
+    for col, mapping in CAT_MAPS.items():
+        if col in df2.columns:
+            df2[col + "_label"] = df2[col].map(mapping)
+
+    x_col = x_var + "_label" if x_var in CAT_MAPS else x_var
+    y_col = y_var + "_label" if y_var in CAT_MAPS else y_var
+    c_col = color_by + "_label" if color_by in CAT_MAPS else color_by
+
+    x_label = VAR_LABELS.get(x_var, x_var)
+    y_label = VAR_LABELS.get(y_var, y_var)
+    c_label = VAR_LABELS.get(color_by, color_by)
+
+    color_map = None
+    if color_by == "target":
+        color_map = {"Sin Enfermedad": C_NO_DISEASE, "Enfermedad Cardíaca": C_DISEASE}
+
+    try:
+        if chart_type == "scatter":
+            fig = px.scatter(df2, x=x_col, y=y_col, color=c_col,
+                             color_discrete_map=color_map, opacity=0.7,
+                             labels={x_col: x_label, y_col: y_label, c_col: c_label},
+                             title=f"{x_label} vs {y_label}",
+                             trendline="ols" if (x_var in NUMERICAL_VARS and y_var in NUMERICAL_VARS) else None)
+        elif chart_type == "histogram":
+            fig = px.histogram(df2, x=x_col, color=c_col,
+                               color_discrete_map=color_map, barmode="overlay", opacity=0.72,
+                               labels={x_col: x_label, c_col: c_label},
+                               title=f"Histograma de {x_label}")
+        elif chart_type == "box":
+            fig = px.box(df2, x=c_col, y=y_col if y_var in NUMERICAL_VARS else x_col,
+                         color=c_col, color_discrete_map=color_map, points="outliers",
+                         labels={c_col: c_label, y_col: y_label, x_col: x_label},
+                         title=f"Box Plot: {y_label} por {c_label}")
+        elif chart_type == "violin":
+            num_col = y_col if y_var in NUMERICAL_VARS else x_col
+            num_lbl = y_label if y_var in NUMERICAL_VARS else x_label
+            fig = px.violin(df2, x=c_col, y=num_col, color=c_col,
+                            color_discrete_map=color_map, box=True, points="outliers",
+                            labels={c_col: c_label, num_col: num_lbl},
+                            title=f"Violin: {num_lbl} por {c_label}")
+        elif chart_type == "bar":
+            grp_col = x_col if x_var in CATEGORICAL_VARS else c_col
+            cnt = df2.groupby([grp_col, c_col]).size().reset_index(name="Conteo") \
+                  if grp_col != c_col else \
+                  df2.groupby(grp_col).size().reset_index(name="Conteo")
+            if grp_col == c_col:
+                cnt.columns = [grp_col, "Conteo"]
+                fig = px.bar(cnt, x=grp_col, y="Conteo",
+                             labels={grp_col: x_label}, title=f"Distribución de {x_label}")
+            else:
+                fig = px.bar(cnt, x=grp_col, y="Conteo", color=c_col,
+                             color_discrete_map=color_map, barmode="group", text="Conteo",
+                             labels={grp_col: x_label, c_col: c_label},
+                             title=f"{x_label} vs {c_label}")
+                fig.update_traces(textposition="outside")
+        else:
+            fig = px.scatter(df2, x=x_col, y=y_col, color=c_col,
+                             color_discrete_map=color_map, opacity=0.7)
+
+        _apply(fig, height=460)
+        return jsonify(json.loads(j(fig)))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+# ── API: Predict ──────────────────────────────────────────────────────────────
+@app.route("/api/predict", methods=["POST"])
+def api_predict():
+    try:
+        data = request.get_json()
+        features = [float(data.get(col, 0)) for col in FEATURE_COLS]
+        X = pd.DataFrame([features], columns=FEATURE_COLS)
+        pred = int(model.predict(X)[0])
+        prob = float(model.predict_proba(X)[0][1])
+
+        # Risk level based on probability
+        if prob < 0.30:
+            risk_level, risk_color = "Bajo",  "#27ae60"
+        elif prob < 0.60:
+            risk_level, risk_color = "Moderado", "#f39c12"
+        else:
+            risk_level, risk_color = "Alto", "#e74c3c"
+
+        return jsonify({
+            "prediction":  pred,
+            "label":       "Enfermedad Cardíaca" if pred == 1 else "Sin Enfermedad",
+            "probability": round(prob * 100, 1),
+            "risk_level":  risk_level,
+            "risk_color":  risk_color,
+            "model_used":  MODEL_STATS["name"],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 # ── Route ─────────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -404,6 +666,8 @@ def index():
         disease_rate_sex          = chart_disease_rate_sex(),
         disease_rate_cp           = chart_disease_rate_cp(),
         parallel_coords           = chart_parallel_coords(),
+        feature_importance        = chart_feature_importance(),
+        confusion_matrix          = chart_confusion_matrix(),
     )
     desc_stats_html = get_descriptive_stats()
     missing_values  = int(df.isnull().sum().sum())
@@ -412,6 +676,13 @@ def index():
     return render_template(
         "index.html",
         stats=stats, charts=charts,
+        model_stats=MODEL_STATS,
+        feature_importance=FEATURE_IMPORTANCE,
+        var_labels=VAR_LABELS,
+        categorical_vars=list(CATEGORICAL_VARS),
+        numerical_vars=list(NUMERICAL_VARS),
+        feature_cols=FEATURE_COLS,
+        cat_maps=CAT_MAPS,
         desc_stats_html=desc_stats_html,
         missing_values=missing_values,
         df_head_html=df_head_html,

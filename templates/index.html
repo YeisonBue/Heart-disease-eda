@@ -37,6 +37,8 @@
         <li class="nav-item"><a class="nav-link" href="#correlation">Correlación</a></li>
         <li class="nav-item"><a class="nav-link" href="#bivariate">Bivariado</a></li>
         <li class="nav-item"><a class="nav-link" href="#insights">Insights</a></li>
+        <li class="nav-item"><a class="nav-link nav-link-builder" href="#chart-builder"><i class="fas fa-sliders me-1"></i>Constructor</a></li>
+        <li class="nav-item"><a class="nav-link nav-link-predict" href="#predictions"><i class="fas fa-brain me-1"></i>Predicción</a></li>
       </ul>
     </div>
   </div>
@@ -600,6 +602,291 @@
 
 </div><!-- /container-fluid -->
 
+<!-- ── 9. Chart Builder ───────────────────────────────────────────────────── -->
+<div class="container-fluid px-4">
+  <section id="chart-builder" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-sliders me-2 text-info"></i>Constructor de Gráficas</h2>
+      <p>Selecciona variables y tipo de gráfica para explorar relaciones personalizadas</p>
+    </div>
+    <div class="row g-4">
+      <!-- Controls -->
+      <div class="col-lg-3">
+        <div class="chart-card p-4">
+          <h6 class="fw-bold mb-3 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            <i class="fas fa-gear me-1"></i>Configuración
+          </h6>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Eje X</label>
+            <select id="cb_x" class="form-select form-select-sm">
+              {% for col in feature_cols + ['target'] %}
+              <option value="{{ col }}" {% if col=='age' %}selected{% endif %}>
+                {{ var_labels[col] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Eje Y / Variable Numérica</label>
+            <select id="cb_y" class="form-select form-select-sm">
+              {% for col in feature_cols + ['target'] %}
+              <option value="{{ col }}" {% if col=='chol' %}selected{% endif %}>
+                {{ var_labels[col] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Tipo de Gráfica</label>
+            <select id="cb_type" class="form-select form-select-sm">
+              <option value="scatter">🔵 Dispersión (Scatter)</option>
+              <option value="histogram">📊 Histograma</option>
+              <option value="box">📦 Box Plot</option>
+              <option value="violin">🎻 Violin</option>
+              <option value="bar">📈 Barras</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold small">Color por</label>
+            <select id="cb_color" class="form-select form-select-sm">
+              <option value="target">Diagnóstico</option>
+              <option value="sex">Sexo</option>
+              <option value="cp">Tipo de Dolor</option>
+              <option value="exang">Angina Ejercicio</option>
+            </select>
+          </div>
+          <button class="btn btn-primary w-100" onclick="buildChart()">
+            <i class="fas fa-chart-line me-2"></i>Generar Gráfica
+          </button>
+          <div class="mt-3 p-2 rounded-2" style="background:#f0f9ff;border:1px solid #bde0f7;font-size:.78rem;color:#1d4ed8">
+            <i class="fas fa-circle-info me-1"></i>
+            Puedes combinar cualquier par de variables del dataset y elegir el tipo de visualización.
+          </div>
+        </div>
+      </div>
+      <!-- Chart output -->
+      <div class="col-lg-9">
+        <div class="chart-card" style="min-height:520px">
+          <div id="chart_builder_output" class="d-flex flex-column justify-content-center align-items-center text-muted" style="height:460px">
+            <i class="fas fa-chart-area fa-4x mb-3 opacity-25"></i>
+            <p class="mb-0">Configura las opciones y presiona <strong>Generar Gráfica</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 10. Predictions ────────────────────────────────────────────────────── -->
+  <section id="predictions" class="mb-5">
+    <div class="section-header">
+      <h2><i class="fas fa-brain me-2 text-purple"></i>Predicción Clínica</h2>
+      <p>Ingresa los valores clínicos del paciente para obtener una predicción de riesgo cardiovascular</p>
+    </div>
+
+    <!-- Model info cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-icon bg-purple-soft"><i class="fas fa-brain text-purple"></i></div>
+          <div class="stat-value">{{ model_stats.name }}</div>
+          <div class="stat-label">Algoritmo</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-icon bg-green-soft"><i class="fas fa-check-circle text-success"></i></div>
+          <div class="stat-value">{{ model_stats.accuracy }}%</div>
+          <div class="stat-label">Exactitud (Test)</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-icon bg-blue-soft"><i class="fas fa-chart-pie text-primary"></i></div>
+          <div class="stat-value">{{ model_stats.auc_roc }}%</div>
+          <div class="stat-label">AUC-ROC</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-icon bg-red-soft"><i class="fas fa-magnifying-glass text-danger"></i></div>
+          <div class="stat-value">{{ model_stats.recall }}%</div>
+          <div class="stat-label">Recall (Sensibilidad)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Prediction Form -->
+      <div class="col-lg-7">
+        <div class="chart-card p-4">
+          <h6 class="fw-bold mb-4 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            <i class="fas fa-clipboard-list me-1"></i>Datos del Paciente
+          </h6>
+          <form id="predict-form">
+            <div class="row g-3">
+              <!-- Demographics -->
+              <div class="col-12"><div class="form-section-title">Datos Demográficos</div></div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Edad (años)</label>
+                <input type="number" name="age" class="form-control form-control-sm" min="20" max="90" value="54" required>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Sexo</label>
+                <select name="sex" class="form-select form-select-sm">
+                  <option value="1">Masculino</option>
+                  <option value="0">Femenino</option>
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Tipo de Dolor Torácico</label>
+                <select name="cp" class="form-select form-select-sm">
+                  <option value="0">Angina Típica</option>
+                  <option value="1">Angina Atípica</option>
+                  <option value="2">Dolor No Anginoso</option>
+                  <option value="3" selected>Asintomático</option>
+                </select>
+              </div>
+              <!-- Clinical -->
+              <div class="col-12 mt-2"><div class="form-section-title">Variables Clínicas</div></div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Presión Arterial (mmHg)</label>
+                <input type="number" name="trestbps" class="form-control form-control-sm" min="80" max="220" value="130" required>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Colesterol (mg/dl)</label>
+                <input type="number" name="chol" class="form-control form-control-sm" min="100" max="600" value="250" required>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Glucosa en Ayunas</label>
+                <select name="fbs" class="form-select form-select-sm">
+                  <option value="0" selected>Normal (≤120 mg/dl)</option>
+                  <option value="1">Alta (>120 mg/dl)</option>
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">ECG en Reposo</label>
+                <select name="restecg" class="form-select form-select-sm">
+                  <option value="0" selected>Normal</option>
+                  <option value="1">Anomalía ST-T</option>
+                  <option value="2">HVI (Estes)</option>
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">FC Máxima (bpm)</label>
+                <input type="number" name="thalach" class="form-control form-control-sm" min="60" max="220" value="150" required>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Angina por Ejercicio</label>
+                <select name="exang" class="form-select form-select-sm">
+                  <option value="0" selected>No</option>
+                  <option value="1">Sí</option>
+                </select>
+              </div>
+              <!-- ST segment -->
+              <div class="col-12 mt-2"><div class="form-section-title">Segmento ST y Vasos</div></div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Depresión ST (Oldpeak)</label>
+                <input type="number" name="oldpeak" class="form-control form-control-sm" min="0" max="7" step="0.1" value="1.0" required>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Pendiente Segmento ST</label>
+                <select name="slope" class="form-select form-select-sm">
+                  <option value="0">Ascendente</option>
+                  <option value="1" selected>Plano</option>
+                  <option value="2">Descendente</option>
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Vasos Coloreados (0–3)</label>
+                <select name="ca" class="form-select form-select-sm">
+                  <option value="0" selected>0 vasos</option>
+                  <option value="1">1 vaso</option>
+                  <option value="2">2 vasos</option>
+                  <option value="3">3 vasos</option>
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Talasemia</label>
+                <select name="thal" class="form-select form-select-sm">
+                  <option value="1">Flujo Normal</option>
+                  <option value="2">Defecto Fijo</option>
+                  <option value="3" selected>Defecto Reversible</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-danger w-100 mt-4 py-2 fw-semibold">
+              <i class="fas fa-stethoscope me-2"></i>Predecir Diagnóstico
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Result + Charts -->
+      <div class="col-lg-5">
+        <div class="chart-card p-4 mb-4">
+          <h6 class="fw-bold mb-3 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            <i class="fas fa-flask me-1"></i>Resultado
+          </h6>
+          <div id="predict-result" class="d-flex flex-column justify-content-center align-items-center text-muted" style="min-height:180px">
+            <i class="fas fa-stethoscope fa-3x mb-3 opacity-25"></i>
+            <p class="mb-0 small">Completa el formulario y presiona <strong>Predecir</strong></p>
+          </div>
+        </div>
+
+        <!-- Model performance comparison -->
+        <div class="chart-card p-3">
+          <h6 class="fw-bold mb-3 text-secondary text-uppercase" style="font-size:.78rem;letter-spacing:.6px">
+            <i class="fas fa-trophy me-1"></i>Comparación de Algoritmos (CV 5-fold)
+          </h6>
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Algoritmo</th><th class="text-end">Media</th><th class="text-end">Desv.</th></tr></thead>
+            <tbody>
+              {% for name, s in model_stats.cv_scores.items() %}
+              <tr {% if name == model_stats.name %}class="table-success fw-semibold"{% endif %}>
+                <td>
+                  {% if name == model_stats.name %}<i class="fas fa-crown text-warning me-1"></i>{% endif %}
+                  {{ name }}
+                </td>
+                <td class="text-end">{{ s.mean }}%</td>
+                <td class="text-end text-muted">±{{ s.std }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Feature importance & Confusion Matrix -->
+      <div class="col-lg-7">
+        <div class="chart-card">
+          <div id="chart_feature_importance" class="plotly-chart"></div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="chart-card">
+          <div id="chart_confusion_matrix" class="plotly-chart"></div>
+          <div class="px-3 pb-3">
+            <div class="row g-2 text-center" style="font-size:.78rem">
+              <div class="col-6">
+                <div class="p-2 rounded-2" style="background:#f0fff4;border:1px solid #b7dfca">
+                  <div class="fw-semibold text-success">Precisión</div>
+                  <div class="fs-5 fw-bold">{{ model_stats.precision }}%</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-2 rounded-2" style="background:#fff8f8;border:1px solid #fddede">
+                  <div class="fw-semibold text-danger">F1-Score</div>
+                  <div class="fs-5 fw-bold">{{ model_stats.f1 }}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div><!-- /container-fluid predictions -->
+
 <!-- ── Footer ────────────────────────────────────────────────────────────── -->
 <footer class="footer">
   <div class="container text-center">
@@ -649,19 +936,94 @@ const charts = {
   disease_rate_sex:        {{ charts.disease_rate_sex | safe }},
   disease_rate_cp:         {{ charts.disease_rate_cp | safe }},
   parallel_coords:         {{ charts.parallel_coords | safe }},
+  feature_importance:      {{ charts.feature_importance | safe }},
+  confusion_matrix:        {{ charts.confusion_matrix | safe }},
 };
 
-Object.entries(charts).forEach(([key, fig]) => {
+// Render every static chart — use layout.height to size the container
+function renderChart(key, fig) {
   const el = document.getElementById('chart_' + key);
-  if (el) Plotly.newPlot(el, fig.data, fig.layout, PLOTLY_CONFIG);
+  if (!el) return;
+  const h = (fig.layout && fig.layout.height) ? fig.layout.height : 380;
+  el.style.height = h + 'px';
+  Plotly.newPlot(el, fig.data, fig.layout, PLOTLY_CONFIG);
+}
+Object.entries(charts).forEach(([key, fig]) => renderChart(key, fig));
+
+/* ── Chart Builder ────────────────────────────────────────────────────────── */
+const builderEl = document.getElementById('chart_builder_output');
+
+function buildChart() {
+  const x         = document.getElementById('cb_x').value;
+  const y         = document.getElementById('cb_y').value;
+  const chartType = document.getElementById('cb_type').value;
+  const colorBy   = document.getElementById('cb_color').value;
+
+  builderEl.innerHTML = '<div class="d-flex justify-content-center align-items-center" style="height:460px"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>';
+
+  fetch(`/api/chart-builder?x=${x}&y=${y}&chart_type=${chartType}&color_by=${colorBy}`)
+    .then(r => r.json())
+    .then(fig => {
+      if (fig.error) {
+        builderEl.innerHTML = `<div class="alert alert-danger m-3">${fig.error}</div>`;
+        return;
+      }
+      builderEl.style.height = '460px';
+      Plotly.newPlot(builderEl, fig.data, fig.layout, PLOTLY_CONFIG);
+    })
+    .catch(err => {
+      builderEl.innerHTML = `<div class="alert alert-danger m-3">Error: ${err}</div>`;
+    });
+}
+
+/* ── Predictor ────────────────────────────────────────────────────────────── */
+document.getElementById('predict-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const resultEl = document.getElementById('predict-result');
+  resultEl.innerHTML = '<div class="d-flex justify-content-center p-4"><div class="spinner-border text-primary"></div></div>';
+
+  const formData = {};
+  new FormData(this).forEach((val, key) => { formData[key] = parseFloat(val); });
+
+  fetch('/api/predict', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.error) {
+      resultEl.innerHTML = `<div class="alert alert-danger">${res.error}</div>`;
+      return;
+    }
+    const icon    = res.prediction === 1 ? 'fa-heart-crack' : 'fa-heart';
+    const bgClass = res.prediction === 1 ? 'result-disease' : 'result-healthy';
+    resultEl.innerHTML = `
+      <div class="predict-result-card ${bgClass}">
+        <div class="predict-icon"><i class="fas ${icon}"></i></div>
+        <div class="predict-label">${res.label}</div>
+        <div class="predict-prob">
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill" style="width:${res.probability}%; background:${res.risk_color}"></div>
+          </div>
+          <div class="prob-text">Probabilidad de enfermedad: <strong style="color:${res.risk_color}">${res.probability}%</strong></div>
+        </div>
+        <div class="predict-risk" style="color:${res.risk_color}">
+          <i class="fas fa-circle-exclamation me-1"></i>Riesgo <strong>${res.risk_level}</strong>
+        </div>
+        <div class="predict-model text-muted small mt-2">Modelo: ${res.model_used}</div>
+      </div>`;
+  })
+  .catch(err => {
+    resultEl.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
+  });
 });
 
-/* Navbar scroll effect */
+/* ── Navbar ───────────────────────────────────────────────────────────────── */
 window.addEventListener('scroll', () => {
   document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 60);
 });
 
-/* Active nav-link highlight */
 const sections  = document.querySelectorAll('section[id]');
 const navLinks  = document.querySelectorAll('#mainNav .nav-link');
 const observer  = new IntersectionObserver(entries => {
@@ -672,7 +1034,7 @@ const observer  = new IntersectionObserver(entries => {
       if (active) active.classList.add('active');
     }
   });
-}, { threshold: 0.35 });
+}, { threshold: 0.25 });
 sections.forEach(s => observer.observe(s));
 </script>
 
