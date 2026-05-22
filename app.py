@@ -407,18 +407,21 @@ def chart_disease_rate_age():
     rate = (df2.groupby("Grupo de Edad", observed=True)["target"]
               .agg(["mean", "count"]).reset_index())
     rate["Tasa (%)"] = (rate["mean"] * 100).round(1)
-    colors = [C_DISEASE if r > 50 else C_NO_DISEASE for r in rate["Tasa (%)"]]
+    rate = rate.sort_values("Tasa (%)", ascending=True).reset_index(drop=True)
+    groups  = rate["Grupo de Edad"].astype(str).tolist()
+    tasas   = rate["Tasa (%)"].tolist()
+    counts  = rate["count"].tolist()
+    colors  = [C_DISEASE if r > 50 else C_NO_DISEASE for r in tasas]
     fig = go.Figure(data=[go.Bar(
-        x=rate["Grupo de Edad"].astype(str), y=rate["Tasa (%)"],
+        y=groups, x=tasas, orientation="h",
         marker_color=colors,
-        text=[f"{r}%<br>(n={n})" for r, n in zip(rate["Tasa (%)"], rate["count"])],
+        text=[f"{r}%  (n={n})" for r, n in zip(tasas, counts)],
         textposition="outside",
-        hovertemplate="Grupo: %{x}<br>Tasa: %{y:.1f}%<extra></extra>",
+        hovertemplate="Grupo %{y}: %{x:.1f}%<extra></extra>",
     )])
     fig.update_layout(**LAYOUT_BASE,
                       title="Tasa de Enfermedad Cardíaca por Grupo de Edad",
-                      xaxis_title="Grupo de Edad", yaxis_title="Tasa (%)",
-                      yaxis=dict(range=[0, 100]), height=400)
+                      xaxis_title="Tasa (%)", xaxis=dict(range=[0, 115]), height=340)
     fig.update_xaxes(gridcolor="#f0f3f7"); fig.update_yaxes(gridcolor="#f0f3f7")
     return j(fig)
 
@@ -428,17 +431,21 @@ def chart_disease_rate_sex():
     df2["Sexo"] = df2["sex"].map(SEX_LABELS)
     rate = df2.groupby("Sexo")["target"].agg(["mean", "count"]).reset_index()
     rate["Tasa (%)"] = (rate["mean"] * 100).round(1)
-    colors = [C_DISEASE if r > 50 else C_NO_DISEASE for r in rate["Tasa (%)"]]
+    rate = rate.sort_values("Tasa (%)", ascending=True).reset_index(drop=True)
+    sexos  = rate["Sexo"].tolist()
+    tasas  = rate["Tasa (%)"].tolist()
+    counts = rate["count"].tolist()
+    colors = [C_DISEASE if r > 50 else C_NO_DISEASE for r in tasas]
     fig = go.Figure(data=[go.Bar(
-        x=rate["Sexo"], y=rate["Tasa (%)"],
+        y=sexos, x=tasas, orientation="h",
         marker_color=colors,
-        text=[f"{r}%<br>(n={n})" for r, n in zip(rate["Tasa (%)"], rate["count"])],
+        text=[f"{r}%  (n={n})" for r, n in zip(tasas, counts)],
         textposition="outside",
-        hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
+        hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
     )])
     fig.update_layout(**LAYOUT_BASE,
                       title="Tasa de Enfermedad Cardíaca por Sexo",
-                      yaxis_title="Tasa (%)", yaxis=dict(range=[0, 100]), height=380)
+                      xaxis_title="Tasa (%)", xaxis=dict(range=[0, 115]), height=300)
     fig.update_xaxes(gridcolor="#f0f3f7"); fig.update_yaxes(gridcolor="#f0f3f7")
     return j(fig)
 
@@ -448,18 +455,21 @@ def chart_disease_rate_cp():
     df2["Tipo de Dolor"] = df2["cp"].map(CP_LABELS)
     rate = df2.groupby("Tipo de Dolor")["target"].agg(["mean", "count"]).reset_index()
     rate["Tasa (%)"] = (rate["mean"] * 100).round(1)
-    rate = rate.sort_values("Tasa (%)")
-    colors = [C_DISEASE if r > 50 else C_NO_DISEASE for r in rate["Tasa (%)"]]
+    rate = rate.sort_values("Tasa (%)", ascending=True).reset_index(drop=True)
+    tipos  = rate["Tipo de Dolor"].tolist()
+    tasas  = rate["Tasa (%)"].tolist()
+    counts = rate["count"].tolist()
+    colors = [C_DISEASE if r > 50 else C_NO_DISEASE for r in tasas]
     fig = go.Figure(data=[go.Bar(
-        x=rate["Tasa (%)"], y=rate["Tipo de Dolor"], orientation="h",
+        y=tipos, x=tasas, orientation="h",
         marker_color=colors,
-        text=[f"{r}%  (n={n})" for r, n in zip(rate["Tasa (%)"], rate["count"])],
+        text=[f"{r}%  (n={n})" for r, n in zip(tasas, counts)],
         textposition="outside",
         hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
     )])
     fig.update_layout(**LAYOUT_BASE,
                       title="Tasa de Enfermedad por Tipo de Dolor Torácico",
-                      xaxis_title="Tasa (%)", xaxis=dict(range=[0, 110]), height=340)
+                      xaxis_title="Tasa (%)", xaxis=dict(range=[0, 120]), height=300)
     fig.update_xaxes(gridcolor="#f0f3f7"); fig.update_yaxes(gridcolor="#f0f3f7")
     return j(fig)
 
@@ -531,7 +541,7 @@ def chart_confusion_matrix():
     layout = {k: v for k, v in LAYOUT_BASE.items() if k != "margin"}
     fig.update_layout(**layout,
                       title="Matriz de Confusión (conjunto de prueba)",
-                      height=340, margin=dict(l=160, r=50, t=58, b=80))
+                      height=340, margin=dict(l=160, r=50, t=58, b=100))
     return j(fig)
 
 
